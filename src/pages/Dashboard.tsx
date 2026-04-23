@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Badge, type BadgeVariant } from '../components/ui/Badge';
 import { useAppState } from '../lib/store';
 import type { RentalStatus } from '../types';
-import { Plus, Play, CheckCircle, FileText } from 'lucide-react';
+import { Plus, Play, CheckCircle, FileText, RefreshCw } from 'lucide-react';
 
 const getStatusBadgeVariant = (status: RentalStatus): BadgeVariant => {
   switch (status) {
@@ -21,7 +21,7 @@ const getStatusBadgeVariant = (status: RentalStatus): BadgeVariant => {
 };
 
 export const Dashboard = () => {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const rentals = state.rentals;
 
   const activeRentals = rentals.filter(r => r.status !== 'Completed').length;
@@ -36,12 +36,18 @@ export const Dashboard = () => {
           <h2 className="page-title">Dashboard</h2>
           <p className="page-subtitle">Manage your active rentals and inspections.</p>
         </div>
-        <Link to="/rentals/new">
-          <Button>
-            <Plus size={18} />
-            Create New Rental
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <Button variant="ghost" onClick={() => dispatch({ type: 'RESET_STATE' })} style={{ color: 'var(--text-tertiary)' }}>
+            <RefreshCw size={18} />
+            Reset Data
           </Button>
-        </Link>
+          <Link to="/rentals/new">
+            <Button>
+              <Plus size={18} />
+              Create New Rental
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="summary-grid">

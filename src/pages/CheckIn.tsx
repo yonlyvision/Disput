@@ -16,6 +16,7 @@ export const CheckIn = () => {
   const [images, setImages] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [simulationResult, setSimulationResult] = useState<'none' | 'possible' | 'clear' | 'auto'>('auto');
 
   const handleImageCapture = (angle: VehicleAngle, _file: File | null, previewUrl: string) => {
     setImages(prev => ({ ...prev, [angle]: previewUrl }));
@@ -29,7 +30,7 @@ export const CheckIn = () => {
     setLoading(true);
     dispatch({ type: 'SAVE_CHECKIN', payload: { rentalId: id, data: { images, notes, completedAt: new Date().toISOString() } } });
     setTimeout(() => {
-      const aiResult = pickMockAiResponse(id);
+      const aiResult = pickMockAiResponse(id, simulationResult === 'auto' ? undefined : simulationResult);
       dispatch({ type: 'SAVE_AI_RESULT', payload: { rentalId: id, data: aiResult } });
       dispatch({ type: 'UPDATE_RENTAL_STATUS', payload: { rentalId: id, status: 'AI Review Ready' } });
       dispatch({ type: 'SHOW_TOAST', payload: { message: 'AI analysis complete. Review results now.', type: 'info' } });
@@ -60,6 +61,31 @@ export const CheckIn = () => {
         <CardHeader><h3 className="section-title">Customer Return Comments</h3></CardHeader>
         <CardBody>
           <textarea className="form-input" rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g., Customer noted they might have scraped the front bumper..." />
+        </CardBody>
+      </Card>
+
+      <Card className="section-card" style={{ border: '1px dashed var(--brand-primary)', backgroundColor: 'var(--brand-secondary)' }}>
+        <CardHeader>
+          <h3 className="section-title" style={{ color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Cpu size={18} /> AI Simulation Mode (Demo Only)
+          </h3>
+        </CardHeader>
+        <CardBody>
+          <p style={{ fontSize: 'var(--text-sm)', marginBottom: '12px', color: 'var(--text-secondary)' }}>
+            Since real AI is currently mock, choose the result you want the system to "detect" for this test.
+          </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {(['auto', 'none', 'possible', 'clear'] as const).map(mode => (
+              <Button
+                key={mode}
+                variant={simulationResult === mode ? 'primary' : 'secondary'}
+                onClick={() => setSimulationResult(mode)}
+                style={{ flex: '1 1 calc(50% - 10px)', textTransform: 'capitalize', minWidth: '100px' }}
+              >
+                {mode}
+              </Button>
+            ))}
+          </div>
         </CardBody>
       </Card>
       <div className="form-actions">

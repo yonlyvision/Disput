@@ -58,7 +58,8 @@ type Action =
   | { type: 'SAVE_AI_RESULT'; payload: { rentalId: string; data: AiReviewData } }
   | { type: 'SAVE_FINAL_REVIEW'; payload: { rentalId: string; data: FinalReviewData } }
   | { type: 'SHOW_TOAST'; payload: { message: string; type: 'success' | 'error' | 'info' } }
-  | { type: 'CLEAR_TOAST' };
+  | { type: 'CLEAR_TOAST' }
+  | { type: 'RESET_STATE' };
 
 // ── Reducer ──────────────────────────────────────────────────
 
@@ -117,30 +118,68 @@ function appReducer(state: AppState, action: Action): AppState {
     case 'CLEAR_TOAST':
       return { ...state, toast: null };
 
+    case 'RESET_STATE':
+      localStorage.removeItem(STORAGE_KEY);
+      return {
+        rentals: [...mockRentals],
+        inspections: {},
+        aiResults: {
+          r1: mockAiResponses.noDamage as AiReviewData,
+          r2: mockAiResponses.possibleDamage as AiReviewData,
+        },
+        finalReviews: {
+          r1: {
+            decision: 'Approve Return',
+            notes: 'Vehicle returned in excellent condition. No damage found.',
+            reviewer: 'John Doe',
+            timestamp: '2026-04-22T10:00:00Z',
+          },
+        },
+        toast: { message: 'System data has been reset to defaults.', type: 'info' },
+      };
+
     default:
       return state;
   }
 }
 
-// ── Initial State (seeded from mockData) ─────────────────────
+// ── Persistence ──────────────────────────────────────────────
 
-const initialState: AppState = {
-  rentals: [...mockRentals],
-  inspections: {},
-  aiResults: {
-    r1: mockAiResponses.noDamage as AiReviewData,
-    r2: mockAiResponses.possibleDamage as AiReviewData,
-  },
-  finalReviews: {
-    r1: {
-      decision: 'Approve Return',
-      notes: 'Vehicle returned in excellent condition. No damage found.',
-      reviewer: 'John Doe',
-      timestamp: '2026-04-22T10:00:00Z',
+const STORAGE_KEY = 'rental_inspection_state';
+
+const loadState = (): AppState => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Basic validation to ensure schema matches
+      if (parsed.rentals && parsed.inspections) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load state from localStorage', e);
+  }
+  return {
+    rentals: [...mockRentals],
+    inspections: {},
+    aiResults: {
+      r1: mockAiResponses.noDamage as AiReviewData,
+      r2: mockAiResponses.possibleDamage as AiReviewData,
     },
-  },
-  toast: null,
+    finalReviews: {
+      r1: {
+        decision: 'Approve Return',
+        notes: 'Vehicle returned in excellent condition. No damage found.',
+        reviewer: 'John Doe',
+        timestamp: '2026-04-22T10:00:00Z',
+      },
+    },
+    toast: null,
+  };
 };
+
+const initialState: AppState = loadState();
 
 // ── Context ──────────────────────────────────────────────────
 
@@ -173,7 +212,11 @@ export const useToast = () => {
 };
 
 // Helper to pick a mock AI response based on rental ID for variety
-export function pickMockAiResponse(rentalId: string): AiReviewData {
+export function pickMockAiResponse(rentalId: string, forcedType?: 'none' | 'possible' | 'clear'): AiReviewData {
+  if (forcedType === 'none') return mockAiResponses.noDamage as AiReviewData;
+  if (forcedType === 'possible') return mockAiResponses.possibleDamage as AiReviewData;
+  if (forcedType === 'clear') return mockAiResponses.clearDamage as AiReviewData;
+
   const hash = rentalId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const options = [mockAiResponses.noDamage, mockAiResponses.possibleDamage, mockAiResponses.clearDamage];
   return options[hash % options.length] as AiReviewData;
@@ -200,6 +243,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return () => clearTimeout(timer);
     }
   }, [state.toast]);
+
+  // Persist state to localStorage
+  useEffect(() => {
+    try {
+      // Don't persist the toast
+      const { toast, ...persistentState } = state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistentState));
+    } catch (e) {
+      console.warn('Failed to save state to localStorage (likely quota limit)', e);
+    }
+  }, [state]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
