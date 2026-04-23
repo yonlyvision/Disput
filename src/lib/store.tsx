@@ -124,13 +124,12 @@ function appReducer(state: AppState, action: Action): AppState {
 
 // ── Initial State (seeded from mockData) ─────────────────────
 
-const mockAiResultForR1: AiReviewData = mockAiResponses.noDamage as AiReviewData;
-
 const initialState: AppState = {
   rentals: [...mockRentals],
   inspections: {},
   aiResults: {
-    r1: mockAiResultForR1,
+    r1: mockAiResponses.noDamage as AiReviewData,
+    r2: mockAiResponses.possibleDamage as AiReviewData,
   },
   finalReviews: {
     r1: {
