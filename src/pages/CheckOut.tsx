@@ -3,23 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardHeader, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ImageUploadCard } from '../components/ui/ImageUploadCard';
+import { REQUIRED_ANGLES } from '../lib/constants';
+import { useAppState, useRental } from '../lib/store';
 import type { VehicleAngle } from '../types';
 import { AlertCircle } from 'lucide-react';
-
-const REQUIRED_ANGLES: { angle: VehicleAngle; guidance: string }[] = [
-  { angle: 'Front', guidance: 'Capture the entire front bumper, grille, and headlights.' },
-  { angle: 'Front-Left', guidance: 'Include the front left wheel and fender.' },
-  { angle: 'Left Side', guidance: 'Capture both doors and the full length of the left side.' },
-  { angle: 'Rear-Left', guidance: 'Include the rear left wheel and quarter panel.' },
-  { angle: 'Rear', guidance: 'Capture the entire rear bumper, trunk, and taillights.' },
-  { angle: 'Rear-Right', guidance: 'Include the rear right wheel and quarter panel.' },
-  { angle: 'Right Side', guidance: 'Capture both doors and the full length of the right side.' },
-  { angle: 'Front-Right', guidance: 'Include the front right wheel and fender.' },
-];
 
 export const CheckOut = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { dispatch } = useAppState();
+  const rental = useRental(id);
+
   const [images, setImages] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
 
@@ -27,29 +21,45 @@ export const CheckOut = () => {
     setImages(prev => ({ ...prev, [angle]: previewUrl }));
   };
 
-  const isComplete = REQUIRED_ANGLES.every(a => images[a.angle]);
+  const completedCount = REQUIRED_ANGLES.filter(a => images[a.angle]).length;
+  const isComplete = completedCount === REQUIRED_ANGLES.length;
 
   const handleSubmit = () => {
-    // Navigate back to dashboard or to a success page
+    if (!id) return;
+
+    dispatch({
+      type: 'SAVE_CHECKOUT',
+      payload: {
+        rentalId: id,
+        data: { images, notes, completedAt: new Date().toISOString() },
+      },
+    });
+    dispatch({ type: 'UPDATE_RENTAL_STATUS', payload: { rentalId: id, status: 'Check-Out Completed' } });
+    dispatch({ type: 'SHOW_TOAST', payload: { message: 'Check-out inspection completed successfully!', type: 'success' } });
     navigate('/dashboard');
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="animate-fade-in page-wide">
       <div style={{ marginBottom: 'var(--spacing-6)' }}>
-        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-bold)', marginBottom: 'var(--spacing-1)' }}>Check-Out Inspection</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>Rental #{id?.toUpperCase()}</p>
+        <h2 className="page-title">Check-Out Inspection</h2>
+        <p className="page-subtitle">
+          Rental #{id?.toUpperCase()}
+          {rental && ` • ${rental.customer_name} • ${rental.vehicle?.year} ${rental.vehicle?.make} ${rental.vehicle?.model}`}
+        </p>
       </div>
 
-      <div style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning-text)', padding: 'var(--spacing-3) var(--spacing-4)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-6)' }}>
+      <div className="alert-banner alert-banner--warning">
         <AlertCircle size={20} />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)' }}>
-          Please capture images in good lighting. Ensure full panels are visible and avoid severe glare to optimize AI comparison later.
-        </span>
+        <span>Capture images in good lighting. Ensure full panels are visible and avoid severe glare for optimal AI comparison.</span>
       </div>
 
-      <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', marginBottom: 'var(--spacing-4)' }}>Required Angles</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--spacing-4)', marginBottom: 'var(--spacing-8)' }}>
+      <div className="section-header">
+        <h3 className="section-title">Required Angles</h3>
+        <span className="progress-counter">{completedCount} / {REQUIRED_ANGLES.length} captured</span>
+      </div>
+
+      <div className="inspection-grid">
         {REQUIRED_ANGLES.map(({ angle, guidance }) => (
           <ImageUploadCard
             key={angle}
@@ -61,18 +71,16 @@ export const CheckOut = () => {
         ))}
       </div>
 
-      <Card style={{ marginBottom: 'var(--spacing-6)' }}>
-        <CardHeader>
-          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)' }}>Existing Damage Notes</h3>
-        </CardHeader>
+      <Card className="section-card">
+        <CardHeader><h3 className="section-title">Existing Damage Notes</h3></CardHeader>
         <CardBody>
           <div className="form-group">
-            <label className="form-label">Note any existing damage that you want to explicitly document</label>
-            <textarea 
-              className="form-input" 
-              rows={4} 
-              value={notes} 
-              onChange={e => setNotes(e.target.value)} 
+            <label className="form-label">Note any existing damage you want to explicitly document</label>
+            <textarea
+              className="form-input"
+              rows={4}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
               placeholder="e.g., Small rock chip on windshield..."
             />
           </div>
@@ -85,19 +93,14 @@ export const CheckOut = () => {
         </CardBody>
       </Card>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-3)' }}>
+      <div className="form-actions">
         <Button variant="ghost" onClick={() => navigate('/dashboard')}>Cancel</Button>
-        <Button 
-          disabled={!isComplete} 
-          onClick={handleSubmit}
-        >
+        <Button disabled={!isComplete} onClick={handleSubmit}>
           Complete Check-Out Inspection
         </Button>
       </div>
       {!isComplete && (
-        <p style={{ textAlign: 'right', fontSize: 'var(--text-xs)', color: 'var(--danger)', marginTop: 'var(--spacing-2)' }}>
-          * All required angles must be captured before submitting.
-        </p>
+        <p className="validation-hint">* All {REQUIRED_ANGLES.length} required angles must be captured before submitting.</p>
       )}
     </div>
   );

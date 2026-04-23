@@ -1,16 +1,12 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
-
 import { CreateRental } from './pages/CreateRental';
 import { CheckOut } from './pages/CheckOut';
 import { CheckIn } from './pages/CheckIn';
 import { AiReview } from './pages/AiReview';
 import { Report } from './pages/Report';
-
-// Placeholder components for the routes
 
 function App() {
   return (
