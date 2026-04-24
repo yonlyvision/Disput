@@ -116,6 +116,11 @@ img { max-width: 100%; height: auto; display: block; }
   to { transform: rotate(360deg); }
 }
 
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .page-header { flex-direction: column; align-items: flex-start; }

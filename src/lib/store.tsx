@@ -5,11 +5,12 @@ import { mockRentals, mockAiResponses, mockVehicles, mockUsers } from './mockDat
 // ── State Shape ──────────────────────────────────────────────
 
 export interface InspectionData {
-  images: Record<string, string>; // angle → base64 data URL
+  images: Record<string, string>; // kept for backward compat with old photo flow
+  frames?: string[];              // video frame extracts (new video flow)
   notes: string;
   completedAt?: string;
-  customerSignature?: string; // base64 PNG of customer's drawn signature
-  signedByName?: string;      // customer-typed name at time of signing
+  customerSignature?: string;
+  signedByName?: string;
 }
 
 export interface AiReviewData {

@@ -4,7 +4,6 @@ import { Card, CardHeader, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAppState, useRental } from '../lib/store';
-import { REQUIRED_ANGLES } from '../lib/constants';
 import { Printer, Download, Archive, User, Car, PenLine, Camera, AlertTriangle } from 'lucide-react';
 
 export const Report = () => {
@@ -25,9 +24,6 @@ export const Report = () => {
   const decisionVariant =
     review?.decision === 'Approve Return' ? 'success' :
     review?.decision === 'Charge Damage Fee' ? 'danger' : 'warning';
-
-  const allAngles = REQUIRED_ANGLES.map(a => a.angle);
-  const hasCheckinPhotos = checkin && Object.keys(checkin.images ?? {}).length > 0;
 
   return (
     <div className="animate-fade-in page-narrow">
@@ -107,84 +103,46 @@ export const Report = () => {
         </Card>
       </div>
 
-      {/* Checkout photos */}
-      {checkout && Object.keys(checkout.images ?? {}).length > 0 && (
+      {/* Video frames */}
+      {(checkout?.frames?.length || checkin?.frames?.length) ? (
         <Card className="section-card">
           <CardHeader style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
             <Camera size={18} />
-            <h3 style={{ fontWeight: 'var(--font-semibold)' }}>
-              {hasCheckinPhotos ? 'Photo Comparison (Check-Out vs Check-In)' : 'Check-Out Photos'}
-            </h3>
+            <h3 style={{ fontWeight: 'var(--font-semibold)' }}>Vehicle Walkthrough Frames</h3>
           </CardHeader>
           <CardBody>
-            {checkout.notes && (
-              <div style={{
-                backgroundColor: 'var(--warning-bg)', border: '1px solid var(--warning)',
-                borderRadius: 'var(--radius-md)', padding: 'var(--spacing-3)',
-                fontSize: 'var(--text-sm)', color: 'var(--warning-text)',
-                marginBottom: 'var(--spacing-4)',
-              }}>
+            {checkout?.notes && (
+              <div style={{ backgroundColor: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-3)', fontSize: 'var(--text-sm)', color: 'var(--warning-text)', marginBottom: 'var(--spacing-4)' }}>
                 <strong>Pre-existing damage noted at checkout:</strong> {checkout.notes}
               </div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--spacing-4)' }}>
-              {allAngles.map(angle => {
-                const coImg = checkout.images?.[angle];
-                const ciImg = checkin?.images?.[angle];
-                const isFlagged = aiResult?.damages.some(d =>
-                  d.side.toLowerCase().includes(angle.toLowerCase().split(' ')[0].split('-')[0])
-                );
-                if (!coImg && !ciImg) return null;
-                return (
-                  <div key={angle}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-2)' }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)' }}>{angle}</span>
-                      {isFlagged && <Badge variant="danger"><AlertTriangle size={11} style={{ marginRight: 4 }} />Flagged</Badge>}
+            {checkout?.frames?.length ? (
+              <div style={{ marginBottom: checkin?.frames?.length ? 'var(--spacing-6)' : 0 }}>
+                <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', marginBottom: 'var(--spacing-2)', color: 'var(--text-secondary)' }}>CHECK-OUT ({checkout.frames.length} frames)</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 'var(--spacing-2)' }}>
+                  {checkout.frames.map((f, i) => (
+                    <div key={i} onClick={() => setExpandedImg(f)} style={{ aspectRatio: '16/9', borderRadius: 'var(--radius-md)', overflow: 'hidden', backgroundColor: 'var(--bg-tertiary)', cursor: 'zoom-in' }}>
+                      <img src={f} alt={`Checkout frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
-                    {hasCheckinPhotos ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-1)' }}>
-                        {[{ label: 'Out', img: coImg }, { label: 'In', img: ciImg }].map(({ label, img }) => (
-                          <div key={label}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', display: 'block', marginBottom: '2px' }}>Check-{label}</span>
-                            <div
-                              onClick={() => img && setExpandedImg(img)}
-                              style={{
-                                height: '110px', backgroundColor: 'var(--bg-tertiary)',
-                                borderRadius: 'var(--radius-md)', overflow: 'hidden',
-                                cursor: img ? 'zoom-in' : 'default',
-                                border: isFlagged && label === 'In' ? '2px solid var(--danger)' : '2px solid transparent',
-                              }}
-                            >
-                              {img
-                                ? <img src={img} alt={`${angle} check-${label}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}>No image</div>
-                              }
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => coImg && setExpandedImg(coImg)}
-                        style={{
-                          height: '160px', backgroundColor: 'var(--bg-tertiary)',
-                          borderRadius: 'var(--radius-md)', overflow: 'hidden',
-                          cursor: coImg ? 'zoom-in' : 'default',
-                        }}
-                      >
-                        {coImg
-                          ? <img src={coImg} alt={angle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}>No image</div>
-                        }
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {checkin?.frames?.length ? (
+              <div>
+                <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', marginBottom: 'var(--spacing-2)', color: 'var(--text-secondary)' }}>CHECK-IN ({checkin.frames.length} frames)</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 'var(--spacing-2)' }}>
+                  {checkin.frames.map((f, i) => (
+                    <div key={i} onClick={() => setExpandedImg(f)} style={{ aspectRatio: '16/9', borderRadius: 'var(--radius-md)', overflow: 'hidden', backgroundColor: 'var(--bg-tertiary)', cursor: 'zoom-in' }}>
+                      <img src={f} alt={`Checkin frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </CardBody>
         </Card>
-      )}
+      ) : null}
 
       {/* AI findings */}
       {aiResult && (
