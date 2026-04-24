@@ -7,11 +7,16 @@ import { CheckOut } from './pages/CheckOut';
 import { CheckIn } from './pages/CheckIn';
 import { AiReview } from './pages/AiReview';
 import { Report } from './pages/Report';
+import { CaptureLink } from './pages/CaptureLink';
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+
+      {/* Public capture page — no nav, customer-facing */}
+      <Route path="/capture/:id" element={<CaptureLink />} />
+
       <Route element={<Layout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/rentals/new" element={<CreateRental />} />
@@ -20,6 +25,7 @@ function App() {
         <Route path="/rentals/:id/review" element={<AiReview />} />
         <Route path="/rentals/:id/report" element={<Report />} />
       </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
