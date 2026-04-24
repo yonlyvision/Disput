@@ -4,19 +4,21 @@ import { Card, CardHeader, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ImageUploadCard } from '../components/ui/ImageUploadCard';
 import { REQUIRED_ANGLES } from '../lib/constants';
-import { useAppState, useRental, pickMockAiResponse } from '../lib/store';
+import { useAppState, useRental } from '../lib/store';
+import { runAiComparison } from '../lib/openai';
 import type { VehicleAngle } from '../types';
-import { AlertCircle, Cpu } from 'lucide-react';
+import { AlertCircle, Cpu, Loader2 } from 'lucide-react';
 
 export const CheckIn = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { dispatch } = useAppState();
+  const { state, dispatch } = useAppState();
   const rental = useRental(id);
   const [images, setImages] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
-  const [simulationResult, setSimulationResult] = useState<'none' | 'possible' | 'clear' | 'auto'>('auto');
+  const [loadingStep, setLoadingStep] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleImageCapture = (angle: VehicleAngle, _file: File | null, previewUrl: string) => {
     setImages(prev => ({ ...prev, [angle]: previewUrl }));
@@ -25,17 +27,47 @@ export const CheckIn = () => {
   const completedCount = REQUIRED_ANGLES.filter(a => images[a.angle]).length;
   const isComplete = completedCount === REQUIRED_ANGLES.length;
 
-  const handleRunAi = () => {
+  const handleRunAi = async () => {
     if (!id) return;
     setLoading(true);
-    dispatch({ type: 'SAVE_CHECKIN', payload: { rentalId: id, data: { images, notes, completedAt: new Date().toISOString() } } });
-    setTimeout(() => {
-      const aiResult = pickMockAiResponse(id, simulationResult === 'auto' ? undefined : simulationResult);
+    setError(null);
+
+    dispatch({
+      type: 'SAVE_CHECKIN',
+      payload: { rentalId: id, data: { images, notes, completedAt: new Date().toISOString() } },
+    });
+
+    const checkoutImages = state.inspections[id]?.checkout?.images ?? {};
+    const existingNotes = state.inspections[id]?.checkout?.notes ?? '';
+
+    const angleImages = REQUIRED_ANGLES.map(({ angle }) => ({
+      angle,
+      checkout: checkoutImages[angle] ?? null,
+      checkin: images[angle] ?? null,
+    }));
+
+    try {
+      setLoadingStep('Resizing images...');
+      // Small delay so UI updates before the async work
+      await new Promise(r => setTimeout(r, 50));
+
+      setLoadingStep('Sending to AI for comparison...');
+      const aiResult = await runAiComparison(angleImages, existingNotes, notes);
+
       dispatch({ type: 'SAVE_AI_RESULT', payload: { rentalId: id, data: aiResult } });
       dispatch({ type: 'UPDATE_RENTAL_STATUS', payload: { rentalId: id, status: 'AI Review Ready' } });
       dispatch({ type: 'SHOW_TOAST', payload: { message: 'AI analysis complete. Review results now.', type: 'info' } });
       navigate(`/rentals/${id}/review`);
-    }, 1500);
+    } catch (err) {
+      console.error('AI comparison failed:', err);
+      setError(
+        err instanceof Error
+          ? `AI analysis failed: ${err.message}`
+          : 'AI analysis failed. Please try again.'
+      );
+      setLoading(false);
+      setLoadingStep('');
+    }
   };
 
   return (
@@ -44,56 +76,59 @@ export const CheckIn = () => {
         <h2 className="page-title">Check-In Inspection</h2>
         <p className="page-subtitle">Rental #{id?.toUpperCase()}{rental && ` • ${rental.customer_name}`}</p>
       </div>
+
       <div className="alert-banner alert-banner--info">
         <AlertCircle size={20} />
-        <span>Try to match the exact angles used during check-out for the best AI accuracy.</span>
+        <span>Match the exact angles used during check-out for the best AI accuracy.</span>
       </div>
+
       <div className="section-header">
         <h3 className="section-title">Required Angles</h3>
         <span className="progress-counter">{completedCount} / {REQUIRED_ANGLES.length} captured</span>
       </div>
+
       <div className="inspection-grid">
         {REQUIRED_ANGLES.map(({ angle, guidance }) => (
-          <ImageUploadCard key={angle} angle={angle} guidance={guidance} imagePreview={images[angle] || null} onImageCapture={handleImageCapture} />
+          <ImageUploadCard
+            key={angle}
+            angle={angle}
+            guidance={guidance}
+            imagePreview={images[angle] || null}
+            onImageCapture={handleImageCapture}
+          />
         ))}
       </div>
+
       <Card className="section-card">
         <CardHeader><h3 className="section-title">Customer Return Comments</h3></CardHeader>
         <CardBody>
-          <textarea className="form-input" rows={3} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g., Customer noted they might have scraped the front bumper..." />
+          <textarea
+            className="form-input"
+            rows={3}
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="e.g., Customer noted they might have scraped the front bumper..."
+          />
         </CardBody>
       </Card>
 
-      <Card className="section-card" style={{ border: '1px dashed var(--brand-primary)', backgroundColor: 'var(--brand-secondary)' }}>
-        <CardHeader>
-          <h3 className="section-title" style={{ color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Cpu size={18} /> AI Simulation Mode (Demo Only)
-          </h3>
-        </CardHeader>
-        <CardBody>
-          <p style={{ fontSize: 'var(--text-sm)', marginBottom: '12px', color: 'var(--text-secondary)' }}>
-            Since real AI is currently mock, choose the result you want the system to "detect" for this test.
-          </p>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            {(['auto', 'none', 'possible', 'clear'] as const).map(mode => (
-              <Button
-                key={mode}
-                variant={simulationResult === mode ? 'primary' : 'secondary'}
-                onClick={() => setSimulationResult(mode)}
-                style={{ flex: '1 1 calc(50% - 10px)', textTransform: 'capitalize', minWidth: '100px' }}
-              >
-                {mode}
-              </Button>
-            ))}
-          </div>
-        </CardBody>
-      </Card>
+      {error && (
+        <div className="alert-banner" style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger-text)', borderColor: 'var(--danger)' }}>
+          <AlertCircle size={20} />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="form-actions">
         <Button variant="ghost" onClick={() => navigate('/dashboard')}>Cancel</Button>
         <Button disabled={!isComplete || loading} onClick={handleRunAi}>
-          {loading ? 'Processing Images...' : <><Cpu size={18} /> Run AI Comparison</>}
+          {loading
+            ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> {loadingStep || 'Processing...'}</>
+            : <><Cpu size={18} /> Run AI Comparison</>
+          }
         </Button>
       </div>
+
       {!isComplete && <p className="validation-hint">* All {REQUIRED_ANGLES.length} required angles must be captured.</p>}
     </div>
   );

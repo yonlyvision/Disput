@@ -29,6 +29,7 @@ export interface Rental {
   vehicle_id: string;
   customer_name: string;
   customer_phone: string;
+  customer_email?: string;
   staff_id: string;
   status: RentalStatus;
   start_date: string;

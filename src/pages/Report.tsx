@@ -4,7 +4,7 @@ import { Card, CardHeader, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAppState, useRental } from '../lib/store';
-import { Printer, Download, Archive, User, Car } from 'lucide-react';
+import { Printer, Download, Archive, User, Car, PenLine } from 'lucide-react';
 
 export const Report = () => {
   const { id } = useParams();
@@ -13,6 +13,7 @@ export const Report = () => {
   const rental = useRental(id);
   const review = id ? state.finalReviews[id] : null;
   const aiResult = id ? state.aiResults[id] : null;
+  const checkout = id ? state.inspections[id]?.checkout : null;
 
   if (!rental) {
     return <div className="animate-fade-in page-narrow"><p>Rental not found.</p></div>;
@@ -29,9 +30,20 @@ export const Report = () => {
         </div>
         <div className="action-buttons">
           <Button variant="secondary" onClick={() => window.print()}><Printer size={16} /> Print</Button>
-          <Button variant="secondary"><Download size={16} /> PDF</Button>
+          <Button variant="secondary" onClick={() => window.print()}><Download size={16} /> PDF</Button>
           <Button variant="secondary"><Archive size={16} /> Archive</Button>
         </div>
+      </div>
+
+      {/* Shown only when printing */}
+      <div className="print-header" style={{ display: 'none' }}>
+        <h1 style={{ fontSize: '20pt', fontWeight: 700, marginBottom: '4pt' }}>Vehicle Inspection Report</h1>
+        <p style={{ fontSize: '11pt', color: '#444' }}>
+          Rental #{rental.id.toUpperCase()} &nbsp;|&nbsp; {rental.customer_name} &nbsp;|&nbsp; {rental.vehicle?.year} {rental.vehicle?.make} {rental.vehicle?.model} ({rental.vehicle?.plate_number})
+        </p>
+        <p style={{ fontSize: '10pt', color: '#666', marginTop: '4pt' }}>
+          Printed: {new Date().toLocaleString()}
+        </p>
       </div>
 
       <Card className="section-card">
@@ -100,6 +112,38 @@ export const Report = () => {
           </table>
         </div>
       </Card>
+
+      {/* Customer Signature Block */}
+      {checkout?.customerSignature && (
+        <Card className="section-card">
+          <CardHeader style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
+            <PenLine size={18} />
+            <h3 style={{ fontWeight: 'var(--font-semibold)' }}>Customer Acknowledgement</h3>
+          </CardHeader>
+          <CardBody>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-3)' }}>
+              By signing below, the customer confirmed receipt of the vehicle in the documented condition at checkout.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
+              <div>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--spacing-1)' }}>Signed by</p>
+                <p style={{ fontWeight: 'var(--font-semibold)' }}>{checkout.signedByName || '—'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--spacing-1)' }}>Date &amp; Time</p>
+                <p style={{ fontWeight: 'var(--font-semibold)' }}>{checkout.completedAt ? new Date(checkout.completedAt).toLocaleString() : '—'}</p>
+              </div>
+            </div>
+            <div style={{ marginTop: 'var(--spacing-4)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', backgroundColor: '#fafafa', padding: 'var(--spacing-2)' }}>
+              <img
+                src={checkout.customerSignature}
+                alt="Customer signature"
+                style={{ maxHeight: '120px', display: 'block' }}
+              />
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 'var(--spacing-8)' }}>
         <Button onClick={() => navigate('/dashboard')} variant="ghost">Return to Dashboard</Button>

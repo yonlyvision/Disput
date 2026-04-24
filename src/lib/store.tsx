@@ -8,6 +8,8 @@ export interface InspectionData {
   images: Record<string, string>; // angle → base64 data URL
   notes: string;
   completedAt?: string;
+  customerSignature?: string; // base64 PNG of customer's drawn signature
+  signedByName?: string;      // customer-typed name at time of signing
 }
 
 export interface AiReviewData {

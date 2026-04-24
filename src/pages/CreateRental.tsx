@@ -31,6 +31,7 @@ export const CreateRental = () => {
       vehicle_id: rentalId,
       customer_name: form.customerName || 'Unknown Customer',
       customer_phone: form.customerPhone || 'N/A',
+      customer_email: form.email || undefined,
       staff_id: 'u1',
       status: 'Draft',
       start_date: form.startDate || new Date().toISOString(),
