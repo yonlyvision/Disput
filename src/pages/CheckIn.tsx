@@ -7,7 +7,7 @@ import { REQUIRED_ANGLES } from '../lib/constants';
 import { useAppState, useRental } from '../lib/store';
 import { runAiComparison } from '../lib/openai';
 import type { VehicleAngle } from '../types';
-import { AlertCircle, Cpu, Loader2 } from 'lucide-react';
+import { AlertCircle, Cpu, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const CheckIn = () => {
   const { id } = useParams();
@@ -19,6 +19,9 @@ export const CheckIn = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showReference, setShowReference] = useState(true);
+
+  const checkoutImages = state.inspections[id ?? '']?.checkout?.images ?? {};
 
   const handleImageCapture = (angle: VehicleAngle, _file: File | null, previewUrl: string) => {
     setImages(prev => ({ ...prev, [angle]: previewUrl }));
@@ -37,12 +40,12 @@ export const CheckIn = () => {
       payload: { rentalId: id, data: { images, notes, completedAt: new Date().toISOString() } },
     });
 
-    const checkoutImages = state.inspections[id]?.checkout?.images ?? {};
+    const checkoutImages2 = state.inspections[id]?.checkout?.images ?? {};
     const existingNotes = state.inspections[id]?.checkout?.notes ?? '';
 
     const angleImages = REQUIRED_ANGLES.map(({ angle }) => ({
       angle,
-      checkout: checkoutImages[angle] ?? null,
+      checkout: checkoutImages2[angle] ?? null,
       checkin: images[angle] ?? null,
     }));
 
@@ -81,6 +84,44 @@ export const CheckIn = () => {
         <AlertCircle size={20} />
         <span>Match the exact angles used during check-out for the best AI accuracy.</span>
       </div>
+
+      {/* Check-out reference photos */}
+      {Object.keys(checkoutImages).length > 0 && (
+        <Card className="section-card" style={{ borderColor: 'var(--brand-primary)' }}>
+          <CardHeader
+            onClick={() => setShowReference(r => !r)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
+          >
+            <h3 className="section-title" style={{ marginBottom: 0, color: 'var(--brand-primary)' }}>
+              Check-Out Reference Photos
+            </h3>
+            {showReference ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </CardHeader>
+          {showReference && (
+            <CardBody>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-3)' }}>
+                Match these angles exactly when capturing check-in photos for accurate AI comparison.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 'var(--spacing-3)' }}>
+                {REQUIRED_ANGLES.map(({ angle }) => {
+                  const img = checkoutImages[angle];
+                  return (
+                    <div key={angle}>
+                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', display: 'block', marginBottom: '4px', color: 'var(--text-secondary)' }}>{angle}</span>
+                      <div style={{ height: '90px', backgroundColor: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                        {img
+                          ? <img src={img} alt={angle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}>—</div>
+                        }
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardBody>
+          )}
+        </Card>
+      )}
 
       <div className="section-header">
         <h3 className="section-title">Required Angles</h3>
