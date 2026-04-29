@@ -2,9 +2,18 @@ import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { Shield, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from './ui/Button';
+import { supabase } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/submissions';
 
 export const Layout = () => {
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    if (isSupabaseConfigured()) {
+      await supabase.auth.signOut();
+    }
+    navigate('/');
+  };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -18,9 +27,9 @@ export const Layout = () => {
             <LayoutDashboard size={18} />
             Dashboard
           </Link>
-          <Button variant="ghost" onClick={() => navigate('/')}>
+          <Button variant="ghost" onClick={handleLogout}>
             <LogOut size={18} />
-            Exit
+            Log Out
           </Button>
         </nav>
       </header>

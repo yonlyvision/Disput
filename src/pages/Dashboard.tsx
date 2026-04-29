@@ -128,7 +128,12 @@ interface ViewSubmissionModalProps {
 }
 
 const ViewSubmissionModal: React.FC<ViewSubmissionModalProps> = ({ submission, onImport, onClose }) => {
-  const angles = Object.keys(submission.images);
+  // Sort frame_0, frame_1, ... numerically and build an ordered array
+  const frames = Object.keys(submission.images)
+    .filter(k => k.startsWith('frame_'))
+    .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
+    .map(k => submission.images[k]);
+
   return (
     <div
       onClick={onClose}
@@ -149,9 +154,9 @@ const ViewSubmissionModal: React.FC<ViewSubmissionModalProps> = ({ submission, o
         <div style={{ padding: 'var(--spacing-6)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--spacing-4)' }}>
             <div>
-              <h3 style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--text-lg)' }}>Customer Photos</h3>
+              <h3 style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--text-lg)' }}>Customer Video Frames</h3>
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                Rental #{submission.rental_id.toUpperCase()} · submitted {new Date(submission.submitted_at).toLocaleString()} by {submission.submitted_by}
+                Rental #{submission.rental_id.toUpperCase()} · {frames.length} frames · submitted {new Date(submission.submitted_at).toLocaleString()} by {submission.submitted_by}
               </p>
             </div>
             <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex' }}>
@@ -169,13 +174,10 @@ const ViewSubmissionModal: React.FC<ViewSubmissionModalProps> = ({ submission, o
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-5)' }}>
-            {angles.map(angle => (
-              <div key={angle}>
-                <p style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', marginBottom: '4px', color: 'var(--text-secondary)' }}>{angle}</p>
-                <div style={{ height: '120px', borderRadius: 'var(--radius-md)', overflow: 'hidden', backgroundColor: 'var(--bg-tertiary)' }}>
-                  <img src={submission.images[angle]} alt={angle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-5)' }}>
+            {frames.map((f, i) => (
+              <div key={i} style={{ aspectRatio: '16/9', borderRadius: 'var(--radius-md)', overflow: 'hidden', backgroundColor: 'var(--bg-tertiary)' }}>
+                <img src={f} alt={`Frame ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             ))}
           </div>
@@ -183,7 +185,7 @@ const ViewSubmissionModal: React.FC<ViewSubmissionModalProps> = ({ submission, o
           <div style={{ display: 'flex', gap: 'var(--spacing-3)', justifyContent: 'flex-end' }}>
             <Button variant="ghost" onClick={onClose}>Close</Button>
             <Button onClick={onImport}>
-              <ArrowRight size={16} /> Use as Check-In Photos
+              <ArrowRight size={16} /> Use as Check-In Frames
             </Button>
           </div>
         </div>
@@ -222,13 +224,19 @@ export const Dashboard = () => {
   };
 
   const handleImportSubmission = async (submission: CustomerSubmission) => {
-    // Pull customer photos into the checkin inspection
+    // Convert frame_0, frame_1, ... dict → ordered string[] for the video-based flow
+    const frames = Object.keys(submission.images)
+      .filter(k => k.startsWith('frame_'))
+      .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
+      .map(k => submission.images[k]);
+
     dispatch({
       type: 'SAVE_CHECKIN',
       payload: {
         rentalId: submission.rental_id,
         data: {
-          images: submission.images,
+          images: {},
+          frames,
           notes: submission.notes || '',
           completedAt: submission.submitted_at,
         },
@@ -238,7 +246,7 @@ export const Dashboard = () => {
     await markSubmissionImported(submission.id);
     setPendingSubmissions(prev => prev.filter(s => s.id !== submission.id));
     setViewSubmission(null);
-    dispatch({ type: 'SHOW_TOAST', payload: { message: 'Customer photos imported. Running AI review...', type: 'info' } });
+    dispatch({ type: 'SHOW_TOAST', payload: { message: 'Customer frames imported. Proceed to Check-In to run AI comparison.', type: 'info' } });
     navigate(`/rentals/${submission.rental_id}/checkin`);
   };
 
@@ -317,7 +325,7 @@ export const Dashboard = () => {
                   <Camera size={18} style={{ color: 'var(--brand-primary)' }} />
                   <div>
                     <p style={{ fontWeight: 'var(--font-medium)', fontSize: 'var(--text-sm)' }}>
-                      Rental #{sub.rental_id.toUpperCase()} — {Object.keys(sub.images).length} photos
+                      Rental #{sub.rental_id.toUpperCase()} — {Object.keys(sub.images).length} frames
                     </p>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
                       Submitted by {sub.submitted_by} · {new Date(sub.submitted_at).toLocaleString()}

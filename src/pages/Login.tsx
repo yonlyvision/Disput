@@ -1,17 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/submissions';
 
 export const Login = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Dummy login: just navigate to dashboard
-    navigate('/dashboard');
+    setError(null);
+
+    if (!isSupabaseConfigured()) {
+      navigate('/dashboard');
+      return;
+    }
+
+    setLoading(true);
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+
+    if (authError) {
+      setError(authError.message);
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -26,20 +46,49 @@ export const Login = () => {
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>Rental Damage Inspection System</p>
           </div>
 
+          {error && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)',
+              backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger)',
+              borderRadius: 'var(--radius-md)', padding: 'var(--spacing-3)',
+              fontSize: 'var(--text-sm)', color: 'var(--danger-text)',
+              marginBottom: 'var(--spacing-4)',
+            }}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleLogin}>
-            <Input label="Email address" type="email" placeholder="staff@rental.com" defaultValue="staff@rental.com" required />
-            <Input label="Password" type="password" placeholder="••••••••" defaultValue="password" required />
-            
-            <Button variant="primary" fullWidth type="submit" style={{ marginTop: 'var(--spacing-4)' }}>
-              Enter Dashboard
+            <Input
+              label="Email address"
+              type="email"
+              placeholder="staff@rental.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+            <Input
+              label="Password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+
+            <Button variant="primary" fullWidth type="submit" disabled={loading} style={{ marginTop: 'var(--spacing-4)' }}>
+              {loading ? 'Signing in...' : 'Enter Dashboard'}
             </Button>
           </form>
-          
-          <div style={{ marginTop: 'var(--spacing-6)', textAlign: 'center' }}>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-              Mock Session • Real Auth Disabled for MVP
-            </p>
-          </div>
+
+          {!isSupabaseConfigured() && (
+            <div style={{ marginTop: 'var(--spacing-6)', textAlign: 'center' }}>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                Demo Mode • Auth bypassed (Supabase not configured)
+              </p>
+            </div>
+          )}
         </CardBody>
       </Card>
     </div>
