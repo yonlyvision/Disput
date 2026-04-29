@@ -3,10 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardHeader, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { VideoCapture } from '../components/ui/VideoCapture';
-import { REQUIRED_ANGLES } from '../lib/constants';
 import { useAppState, useRental } from '../lib/store';
 import { runAiComparison } from '../lib/openai';
-import { AlertCircle, Cpu, Loader2, Video, CheckCircle2, Play, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, Cpu, Loader2, Video, CheckCircle2, Play, ChevronDown, ChevronUp, Inbox } from 'lucide-react';
 
 export const CheckIn = () => {
   const { id } = useParams();
@@ -14,18 +13,22 @@ export const CheckIn = () => {
   const { state, dispatch } = useAppState();
   const rental = useRental(id);
 
-  const [frames, setFrames] = useState<string[]>([]);
+  const checkoutData = state.inspections[id ?? '']?.checkout;
+  const checkinData = state.inspections[id ?? '']?.checkin;
+  const checkoutFrames = checkoutData?.frames ?? [];
+  const hasCheckoutRef = checkoutFrames.length > 0;
+
+  // Pre-load imported customer frames if they exist in state (from Dashboard import)
+  const [frames, setFrames] = useState<string[]>(() => checkinData?.frames ?? []);
+  const [notes, setNotes] = useState(() => checkinData?.notes ?? '');
   const [videoCaptureOpen, setVideoCaptureOpen] = useState(false);
-  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showRefFrames, setShowRefFrames] = useState(true);
 
-  const checkoutData = state.inspections[id ?? '']?.checkout;
-  const checkoutFrames = checkoutData?.frames ?? [];
-  const hasCheckoutRef = checkoutFrames.length > 0;
   const hasVideo = frames.length > 0;
+  const isImported = !!checkinData?.frames?.length && frames === checkinData.frames;
 
   const handleRunAi = async () => {
     if (!id || !hasVideo) return;
@@ -109,13 +112,18 @@ export const CheckIn = () => {
         <CardHeader style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)' }}>
           {hasVideo ? <CheckCircle2 size={18} style={{ color: 'var(--success)' }} /> : <Video size={18} style={{ color: 'var(--brand-primary)' }} />}
           <h3 className="section-title" style={{ marginBottom: 0 }}>Return Vehicle Walkthrough Video</h3>
+          {isImported && (
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--brand-primary)', fontWeight: 'var(--font-medium)' }}>
+              <Inbox size={13} /> Customer submitted
+            </span>
+          )}
         </CardHeader>
         <CardBody>
           {hasVideo ? (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--spacing-3)' }}>
                 <span style={{ fontSize: 'var(--text-sm)', color: 'var(--success)', fontWeight: 'var(--font-medium)' }}>
-                  {frames.length} frames captured
+                  {frames.length} frames {isImported ? '(customer submission)' : 'captured'}
                 </span>
                 <Button variant="ghost" onClick={() => setVideoCaptureOpen(true)} style={{ fontSize: 'var(--text-xs)' }}>
                   <Play size={13} /> Retake
@@ -177,7 +185,3 @@ export const CheckIn = () => {
     </div>
   );
 };
-
-// Keep REQUIRED_ANGLES import to avoid unused warning — used in old photo flow
-const _unused = REQUIRED_ANGLES;
-void _unused;
