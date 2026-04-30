@@ -123,23 +123,7 @@ function appReducer(state: AppState, action: Action): AppState {
 
     case 'RESET_STATE':
       localStorage.removeItem(STORAGE_KEY);
-      return {
-        rentals: [...mockRentals],
-        inspections: {},
-        aiResults: {
-          r1: mockAiResponses.noDamage as AiReviewData,
-          r2: mockAiResponses.possibleDamage as AiReviewData,
-        },
-        finalReviews: {
-          r1: {
-            decision: 'Approve Return',
-            notes: 'Vehicle returned in excellent condition. No damage found.',
-            reviewer: 'John Doe',
-            timestamp: '2026-04-22T10:00:00Z',
-          },
-        },
-        toast: { message: 'System data has been reset to defaults.', type: 'info' },
-      };
+      return { ...defaultState, toast: { message: 'System data has been reset to defaults.', type: 'info' } };
 
     default:
       return state;
@@ -150,36 +134,37 @@ function appReducer(state: AppState, action: Action): AppState {
 
 const STORAGE_KEY = 'rental_inspection_state';
 
+const defaultState: Omit<AppState, 'toast'> = {
+  rentals: [...mockRentals],
+  inspections: {},
+  aiResults: {
+    r1: mockAiResponses.noDamage as AiReviewData,
+    r2: mockAiResponses.possibleDamage as AiReviewData,
+  },
+  finalReviews: {
+    r1: {
+      decision: 'Approve Return',
+      notes: 'Vehicle returned in excellent condition. No damage found.',
+      reviewer: 'John Doe',
+      timestamp: '2026-04-22T10:00:00Z',
+    },
+  },
+};
+
 const loadState = (): AppState => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Basic validation to ensure schema matches
       if (parsed.rentals && parsed.inspections) {
-        return parsed;
+        // Merge with defaults so new fields added to AppState never crash on old stored state
+        return { ...defaultState, ...parsed, toast: null };
       }
     }
   } catch (e) {
     console.error('Failed to load state from localStorage', e);
   }
-  return {
-    rentals: [...mockRentals],
-    inspections: {},
-    aiResults: {
-      r1: mockAiResponses.noDamage as AiReviewData,
-      r2: mockAiResponses.possibleDamage as AiReviewData,
-    },
-    finalReviews: {
-      r1: {
-        decision: 'Approve Return',
-        notes: 'Vehicle returned in excellent condition. No damage found.',
-        reviewer: 'John Doe',
-        timestamp: '2026-04-22T10:00:00Z',
-      },
-    },
-    toast: null,
-  };
+  return { ...defaultState, toast: null };
 };
 
 const initialState: AppState = loadState();
@@ -225,11 +210,9 @@ export function pickMockAiResponse(rentalId: string, forcedType?: 'none' | 'poss
   return options[hash % options.length] as AiReviewData;
 }
 
-// Helper to generate a unique rental ID
-let rentalCounter = 100;
+// Generate a short unique rental ID using timestamp + random suffix
 export function generateRentalId(): string {
-  rentalCounter++;
-  return `r${rentalCounter}`;
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 }
 
 export { mockVehicles, mockUsers };

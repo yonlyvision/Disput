@@ -22,6 +22,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     supabase.auth.getSession().then(({ data }) => {
       setAuthed(!!data.session);
       setChecked(true);
+    }).catch(() => {
+      setChecked(true); // fail open on network error — Supabase will enforce auth on API calls
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {

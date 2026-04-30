@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 export interface CustomerSubmission {
   id: string;
   rental_id: string;
-  images: Record<string, string>; // angle → base64
+  images: Record<string, string>; // frame_0, frame_1, ... → base64
   notes: string;
   submitted_by: string;
   submitted_at: string;
